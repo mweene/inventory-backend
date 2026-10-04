@@ -2,7 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "/dist/server.js",
   "scripts": {
     "dev": "tsx --watch src/server.ts",
     "build": "tsc",
@@ -19,5 +19,16 @@
     }
   },
   "packageManager": "pnpm@12.3.4",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
 }
