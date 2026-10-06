@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "express-validator": "^7.3.2"
+  },
+  "devDependencies": {
+    "@types/morgan": "^1.9.10"
   }
 }

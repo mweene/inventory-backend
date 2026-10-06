@@ -21,8 +21,11 @@
   "packageManager": "pnpm@12.3.4",
   "type": "module",
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "dotenv": "^18.0.5",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "knex": "^3.3.0",
+    "morgan": "^1.12.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
