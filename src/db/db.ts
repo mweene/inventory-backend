@@ -8,9 +8,19 @@ export interface Product {
   price: number
 }
 
+export interface InventoryLot {
+  id?: number
+  product_id: number
+  qty_received: number
+  qty_remaining: number
+  unit_cost: number
+  created_at?: string
+}
+
 declare module 'knex/types/tables.js' {
   interface Tables {
-    products: Product
+    products: Product,
+    inventory_lots: InventoryLot
   }
 }
 
@@ -42,4 +52,35 @@ export const initDB = async () => {
       table.float('price').notNullable().defaultTo(0)
     })
   }
+
+  
+  if (!(await db.schema.hasTable('inventory_lots'))) {
+    await db.schema.createTable('inventory_lots', (table) => {
+      table.increments('id').primary()
+      table
+        .integer('product_id')
+        .unsigned()
+        .notNullable()
+        .references('id')
+        .inTable('products')
+        .onDelete('CASCADE')
+      table.integer('qty_received').notNullable().checkPositive()
+      table.integer('qty_remaining').notNullable()
+      table.float('unit_cost').notNullable().checkPositive()
+      table.timestamp('created_at').defaultTo(db.fn.now())
+
+      // Check constraints
+      table.check('?? >= 0 AND ?? <= ??', ['qty_remaining', 'qty_remaining', 'qty_received'])
+    })
+
+    // Partial Index for high-speed FIFO lookup
+    await db.schema.raw(`
+      CREATE INDEX IF NOT EXISTS idx_lots_fifo
+      ON inventory_lots(product_id, id ASC)
+      WHERE qty_remaining > 0
+    `)
+  }
+
+
+
 }
