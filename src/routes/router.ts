@@ -9,6 +9,9 @@ router.get('/api/products/:sku', controllers.getProductBySku)
 router.post('/api/products', controllers.createProduct)
 router.post('/api/productWithStock', controllers.createProductWithStock)
 
+router.post('/api/inventory/restock', controllers.restockInventory)
+router.post('/api/sales', controllers.createSale)
+           
 router.get('/api/dashboard', controllers.getDashboardData)
 
 export default router
