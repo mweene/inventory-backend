@@ -1,4 +1,6 @@
 import type { Request, Response } from 'express'
+import path from 'node:path'
+import fs from 'node:fs'
 import { db } from '../db/db.js'
 import type { CreateProductWithStockInput } from '../schemas/inventory.schema.js'
 import type { CreateProductInput } from '../schemas/product.schema.js'
@@ -38,10 +40,10 @@ export const createProduct = async (req: Request, res: Response) => {
 
   try {
     const [productId] = await db('products').insert({
-      sku: payload.sku, 
-      name: payload.name, 
-      category: payload.category, 
-      price: payload.price 
+      sku: payload.sku,
+      name: payload.name,
+      category: payload.category,
+      price: payload.price
     })
 
     return res.status(201).json({
@@ -133,7 +135,7 @@ export const createSale = async (req: Request, res: Response) => {
         unitPrice: number;
       }> = [];
 
-      // 1. FIRST PASS: Validate inventory, check stock, and calculate totals 
+      // 1. FIRST PASS: Validate inventory, check stock, and calculate totals
       // (This happens before touching the sales table, avoiding any CHECK constraint errors)
       for (const cartItem of items) {
         const { sku, quantity } = cartItem;
@@ -206,11 +208,42 @@ export const getDashboardData = async (req:Request, res:Response) => {
   try {
     const dashboardData = await db('products as p')
       .join('inventory_lots as i', 'i.product_id', 'p.id')
-      .select('p.id', 'p.sku', 'p.name', 'p.category', 'p.price', 
+      .select('p.id', 'p.sku', 'p.name', 'p.category', 'p.price',
         'i.qty_received', 'i.qty_remaining', 'i.unit_cost', 'i.created_at')
-    
+
     return res.status(200).json({data: dashboardData})
   } catch(err: any) {
     return res.status(500).json({error: err})
+  }
+}
+
+let running = false
+export const backupDatabase = async (req: Request, res: Response) => {
+  const BACKUP_DIR = path.resolve(
+    process.env.BACKUP_DIR ?? path.join(process.cwd(), 'backups'))
+  fs.mkdirSync(BACKUP_DIR, { recursive: true })
+
+  const existingFiles = fs.readdirSync(BACKUP_DIR) //check if folder is not empty
+  for (const file of existingFiles) {
+    const filePath = path.join(BACKUP_DIR, file)
+    const stat = fs.statSync(filePath)
+
+    if (stat.isFile())
+      fs.unlinkSync(filePath)
+  }
+  if (running)
+    return res.status(409).json({error: 'Backup already in progress'})
+  running = true
+
+  const name = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.db`
+  const dest = path.join(BACKUP_DIR, name)
+  try {
+    await db.raw(`VACUUM INTO ?`, [dest])
+    res.json({ok: true, file: name})
+  } catch (err: unknown) {
+    console.error(err)
+    res.status(500).json({error: 'Backup Failed'})
+  } finally {
+    running = false
   }
 }
