@@ -11,9 +11,19 @@ export default function buildApp():express.Application {
   app.use(morgan('dev'))
   app.use(express.json())
   app.use(express.urlencoded({ extended: true }))
-  app.use('/public', express.static(path.join(process.cwd(), 'public')))
+
+  const publicPath = path.join(process.cwd(), 'public')
+  app.use(express.static(publicPath))
+
   app.use(router)
+
+  // SPA fallback for client-side routing
+  app.get('/{*splat}', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next()
+    }
+    res.sendFile(path.join(publicPath, 'index.html'))
+  })
 
   return app
 }
-
