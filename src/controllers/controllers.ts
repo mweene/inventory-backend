@@ -253,13 +253,32 @@ export const getSales = async (req: Request, res: Response) => {
 export const getDashboardData = async (req:Request, res:Response) => {
   try {
     const dashboardData = await db('products as p')
-      .join('inventory_lots as i', 'i.product_id', 'p.id')
-      .select('p.id', 'p.sku', 'p.name', 'p.category', 'p.price',
-        'i.qty_received', 'i.qty_remaining', 'i.unit_cost', 'i.created_at')
+      .leftJoin('inventory_lots as i', 'i.product_id', 'p.id')
+      .select(
+        'p.id',
+        'p.sku',
+        'p.name',
+        'p.category',
+        'p.price'
+      )
+      .sum('i.qty_received as qty_received')
+      .sum('i.qty_remaining as qty_remaining')
+      .avg('i.unit_cost as unit_cost')
+      .max('i.created_at as created_at')
+      .groupBy('p.id', 'p.sku', 'p.name', 'p.category', 'p.price')
 
-    return res.status(200).json({data: dashboardData})
+    // Ensure null quantities default to 0 for products without lots yet
+    const sanitizedData = dashboardData.map((row: any) => ({
+      ...row,
+      qty_received: row.qty_received ?? 0,
+      qty_remaining: row.qty_remaining ?? 0,
+      unit_cost: row.unit_cost ?? 0,
+      created_at: row.created_at ?? ''
+    }))
+
+    return res.status(200).json({data: sanitizedData})
   } catch(err: any) {
-    return res.status(500).json({error: err})
+    return res.status(500).json({error: err.message || 'Failed to fetch dashboard data'})
   }
 }
 
