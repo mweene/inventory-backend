@@ -252,31 +252,26 @@ export const getSales = async (req: Request, res: Response) => {
 
 export const getDashboardData = async (req:Request, res:Response) => {
   try {
-    const dashboardData = await db('products as p')
-      .leftJoin('inventory_lots as i', 'i.product_id', 'p.id')
-      .select(
-        'p.id',
-        'p.sku',
-        'p.name',
-        'p.category',
-        'p.price'
-      )
-      .sum('i.qty_received as qty_received')
-      .sum('i.qty_remaining as qty_remaining')
-      .avg('i.unit_cost as unit_cost')
-      .max('i.created_at as created_at')
-      .groupBy('p.id', 'p.sku', 'p.name', 'p.category', 'p.price')
+    const products = await db('products').select('*')
+    const lots = await db('inventory_lots').select('*').orderBy('id', 'asc')
 
-    // Ensure null quantities default to 0 for products without lots yet
-    const sanitizedData = dashboardData.map((row: any) => ({
-      ...row,
-      qty_received: row.qty_received ?? 0,
-      qty_remaining: row.qty_remaining ?? 0,
-      unit_cost: row.unit_cost ?? 0,
-      created_at: row.created_at ?? ''
-    }))
+    const dashboardData = products.map((product) => {
+      const productLots = lots.filter((l) => l.product_id === product.id)
+      const qty_received = productLots.reduce((sum, l) => sum + l.qty_received, 0)
+      const qty_remaining = productLots.reduce((sum, l) => sum + l.qty_remaining, 0)
+      const latestLot = productLots[productLots.length - 1]
 
-    return res.status(200).json({data: sanitizedData})
+      return {
+        ...product,
+        qty_received,
+        qty_remaining,
+        unit_cost: latestLot ? latestLot.unit_cost : 0,
+        created_at: latestLot ? latestLot.created_at : '',
+        lots: productLots
+      }
+    })
+
+    return res.status(200).json({data: dashboardData})
   } catch(err: any) {
     return res.status(500).json({error: err.message || 'Failed to fetch dashboard data'})
   }
