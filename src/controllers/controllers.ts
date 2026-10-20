@@ -204,6 +204,52 @@ export const createSale = async (req: Request, res: Response) => {
   }
 };
 
+export const getSales = async (req: Request, res: Response) => {
+  try {
+    const sales = await db('sales')
+      .leftJoin('sale_items', 'sales.id', 'sale_items.sale_id')
+      .leftJoin('products', 'sale_items.product_id', 'products.id')
+      .select(
+        'sales.id as sale_id',
+        'sales.total_amount',
+        'sales.created_at',
+        'sale_items.id as item_id',
+        'sale_items.quantity',
+        'sale_items.unit_price',
+        'sale_items.total_price',
+        'products.sku',
+        'products.name as product_name'
+      )
+      .orderBy('sales.created_at', 'desc')
+
+    const salesMap = new Map()
+    for (const row of sales) {
+      if (!salesMap.has(row.sale_id)) {
+        salesMap.set(row.sale_id, {
+          id: row.sale_id,
+          total_amount: row.total_amount,
+          created_at: row.created_at,
+          items: []
+        })
+      }
+      if (row.item_id) {
+        salesMap.get(row.sale_id).items.push({
+          item_id: row.item_id,
+          sku: row.sku,
+          product_name: row.product_name,
+          quantity: row.quantity,
+          unit_price: row.unit_price,
+          total_price: row.total_price
+        })
+      }
+    }
+
+    return res.status(200).json({ data: Array.from(salesMap.values()) })
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Failed to fetch sales' })
+  }
+}
+
 export const getDashboardData = async (req:Request, res:Response) => {
   try {
     const dashboardData = await db('products as p')

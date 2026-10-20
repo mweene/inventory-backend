@@ -11,6 +11,7 @@ router.post('/api/productWithStock', controllers.createProductWithStock)
 
 router.post('/api/inventory/restock', controllers.restockInventory)
 router.post('/api/sales', controllers.createSale)
+router.get('/api/sales', controllers.getSales)
 
 router.get('/api/dashboard', controllers.getDashboardData)
 router.post('/api/backup', controllers.backupDatabase)
