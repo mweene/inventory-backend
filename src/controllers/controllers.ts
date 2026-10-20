@@ -68,14 +68,14 @@ export const createProductWithStock = async (req: Request, res: Response) => {
         name: payload.name,
         category: payload.category,
         price: payload.price
-      })
+      }) as unknown as number[]
 
       const [lotId] = await trx('inventory_lots').insert({
-        product_id: productId,
+        product_id: productId!,
         qty_received: payload.qty_received,
         qty_remaining: payload.qty_received, // Default remaining stock to received quantity
         unit_cost: payload.unit_cost
-      })
+      }) as unknown as number[]
 
       return res.status(201).json({
         message: `Product "${payload.name}" and initial stock created successfully!`,
@@ -105,11 +105,11 @@ export const restockInventory = async (req:Request, res:Response) => {
     }
 
     const [lotId] = await db('inventory_lots').insert({
-      product_id: product.id,
+      product_id: product.id!,
       unit_cost: payload.unit_cost,
       qty_received: payload.qty_received,
       qty_remaining: payload.qty_received
-    })
+    }) as unknown as number[]
 
     return res.status(201).json({message: `new stock:${lotId} has been added successfully`})
   } catch(err:any) {
@@ -147,7 +147,7 @@ export const createSale = async (req: Request, res: Response) => {
 
         // Find available lots using FIFO
         const lots = await trx('inventory_lots')
-          .where({ product_id: product.id })
+          .where('product_id', '=', product.id!)
           .andWhere('qty_remaining', '>', 0)
           .orderBy('id', 'asc');
 
@@ -165,8 +165,8 @@ export const createSale = async (req: Request, res: Response) => {
           const takeFromThisLot = Math.min(remainingNeeded, lot.qty_remaining);
 
           resolvedItems.push({
-            productId: product.id, //fix this in ts
-            lotId: lot.id, //and this here too
+            productId: product.id!, //fix this in ts
+            lotId: lot.id!, //and this here too
             quantity: takeFromThisLot,
             unitPrice: product.price,
           });
@@ -177,12 +177,12 @@ export const createSale = async (req: Request, res: Response) => {
       }
 
       // 2. Insert the main sale header with the real grandTotal (Satisfies your CHECK constraint!)
-      const [saleId] = await trx('sales').insert({ total_amount: grandTotal });
+      const [saleId] = await trx('sales').insert({ total_amount: grandTotal }) as unknown as number[];
 
       // 3. Insert all line items (Firing the trigger to deduct lot stock automatically)
       for (const item of resolvedItems) {
         await trx('sale_items').insert({
-          sale_id: saleId,
+          sale_id: saleId!,
           product_id: item.productId,
           lot_id: item.lotId,
           quantity: item.quantity,
@@ -219,30 +219,31 @@ export const getDashboardData = async (req:Request, res:Response) => {
 
 let running = false
 export const backupDatabase = async (req: Request, res: Response) => {
-  const BACKUP_DIR = path.resolve(
-    process.env.BACKUP_DIR ?? path.join(process.cwd(), 'backups'))
-  fs.mkdirSync(BACKUP_DIR, { recursive: true })
-
-  const existingFiles = fs.readdirSync(BACKUP_DIR) //check if folder is not empty
-  for (const file of existingFiles) {
-    const filePath = path.join(BACKUP_DIR, file)
-    const stat = fs.statSync(filePath)
-
-    if (stat.isFile())
-      fs.unlinkSync(filePath)
-  }
   if (running)
     return res.status(409).json({error: 'Backup already in progress'})
   running = true
 
-  const name = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.db`
-  const dest = path.join(BACKUP_DIR, name)
+  const BACKUP_DIR = path.resolve(
+    process.env.BACKUP_DIR ?? path.join(process.cwd(), 'backups'))
+  fs.mkdirSync(BACKUP_DIR, { recursive: true })
+
   try {
+    const existingFiles = fs.readdirSync(BACKUP_DIR) //check if folder is not empty
+    for (const file of existingFiles) {
+      const filePath = path.join(BACKUP_DIR, file)
+      const stat = fs.statSync(filePath)
+
+      if (stat.isFile())
+        fs.unlinkSync(filePath)
+    }
+
+    const name = `backup-${new Date().toISOString().replace(/[:.]/g, '-')}.db`
+    const dest = path.join(BACKUP_DIR, name)
     await db.raw(`VACUUM INTO ?`, [dest])
-    res.json({ok: true, file: name})
+    return res.json({ok: true, file: name})
   } catch (err: unknown) {
     console.error(err)
-    res.status(500).json({error: 'Backup Failed'})
+    return res.status(500).json({error: 'Backup Failed'})
   } finally {
     running = false
   }
