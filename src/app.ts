@@ -12,7 +12,7 @@ export default function buildApp():express.Application {
   app.use(express.json())
   app.use(express.urlencoded({ extended: true }))
 
-  const publicPath = path.join(process.cwd(), 'public')
+  const publicPath = path.join(process.cwd(), 'src', 'public')
   app.use(express.static(publicPath))
 
   app.use(router)
